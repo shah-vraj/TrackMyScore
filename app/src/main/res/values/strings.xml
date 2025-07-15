@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">TrackMyScore</string>
+    <string name="txt_confirm">Confirm</string>
+    <string name="txt_cancel">Cancel</string>
+    <string name="txt_leaderboard">Leaderboard 🏆</string>
+    <string name="txt_stats">Stats 🏆</string>
+    <string name="txt_add_players_to_start_game">Add players to start game</string>
+    <string name="txt_placeholder_player_name">Player name</string>
+    <string name="txt_add">Add</string>
+    <string name="txt_start_game">Start game</string>
+    <string name="txt_please_select_at_least_2_player">Please select at least 2 player</string>
+    <string name="txt_remove_player">Remove player</string>
+    <string name="txt_remove_player_message">Are you sure you want to remove the following player?</string>
+    <string name="txt_name_cannot_be_empty">Name cannot be empty</string>
+    <string name="txt_player_already_added">Player already added</string>
+    <string name="txt_game">Game</string>
+    <string name="txt_select_batsman">Select batsman</string>
+    <string name="txt_select_bowler">Select bowler</string>
+    <string name="txt_select_catcher">Select catcher</string>
+    <string name="txt_start_innings">Start innings</string>
+    <string name="txt_record_action">Record action</string>
+    <string name="err_select_bowler">Please select a bowler</string>
+    <string name="err_select_action">Please select an action</string>
+    <string name="err_select_catcher">Please select a catcher</string>
+    <string name="txt_action_recorded">Action recorded</string>
+    <string name="txt_title_record_action">Record action</string>
+    <string name="txt_message_record_action">Are you sure you want to record the action?</string>
+    <string name="txt_enter_direct_runs_to_add">Enter direct runs to add</string>
+</resources>
