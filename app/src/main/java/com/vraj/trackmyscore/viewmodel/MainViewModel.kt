@@ -71,7 +71,7 @@ class MainViewModel @Inject constructor(
     private val _batterActions = MutableStateFlow(BatterAction.actionList.map { it to false })
     val batterActions = _batterActions.asStateFlow()
 
-    private val _selectedLeaderboardType = MutableStateFlow(LeaderboardType.MOST_RUNS)
+    private val _selectedLeaderboardType = MutableStateFlow(LeaderboardType.MOST_VALUABLE_PLAYER)
     val selectedLeaderboardType = _selectedLeaderboardType.asStateFlow()
 
     val inGamePlayers = players.map {
@@ -186,18 +186,8 @@ class MainViewModel @Inject constructor(
 
     fun recordInnings() {
         viewModelScope.launch(ioDispatcher) {
-            if (_selectedBowler.value.id == INVALID_ID) {
-                _toastMessage.value = R.string.err_select_bowler
-                return@launch
-            }
-
             val action = _batterActions.value.find { it.second }?.first ?: run {
                 _toastMessage.value = R.string.err_select_action
-                return@launch
-            }
-
-            if (action == WK_CATCH && _selectedCatcher.value.id == INVALID_ID) {
-                _toastMessage.value = R.string.err_select_catcher
                 return@launch
             }
 
@@ -212,6 +202,16 @@ class MainViewModel @Inject constructor(
                     }
                 }
                 WK_BOWLED, WK_CATCH -> {
+                    if (_selectedBowler.value.id == INVALID_ID) {
+                        _toastMessage.value = R.string.err_select_bowler
+                        return@launch
+                    }
+
+                    if (action == WK_CATCH && _selectedCatcher.value.id == INVALID_ID) {
+                        _toastMessage.value = R.string.err_select_catcher
+                        return@launch
+                    }
+
                     playerRepository.addOut(_selectedBatsman.value.id)
                     playerRepository.addWicket(_selectedBowler.value.id).also {
                         if (action == WK_CATCH)
@@ -225,7 +225,6 @@ class MainViewModel @Inject constructor(
             fetchCurrentBatter()
             _batterActions.value = _batterActions.value.map { it.first to false }
             _toastMessage.value = R.string.txt_action_recorded
-            _selectedBowler.value = PlayerEntity.dummy
             _selectedCatcher.value = PlayerEntity.dummy
             _selectedDirectRuns.value = ""
         }

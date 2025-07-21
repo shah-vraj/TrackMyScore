@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
                 GameScreen(navHostController, viewModel)
             }
             composable(MainScreen.StatsScreen.route) {
-//                StatsScreen(navHostController, viewModel)
+                StatsScreen(navHostController, viewModel)
             }
         }
     }

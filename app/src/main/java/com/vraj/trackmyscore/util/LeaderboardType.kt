@@ -1,6 +1,7 @@
 package com.vraj.trackmyscore.util
 
 enum class LeaderboardType(val title: String) {
+    MOST_VALUABLE_PLAYER("Most valuable player"),
     MOST_RUNS("Most runs"),
     AVERAGE("Average"),
     HIGHEST_INDIVIDUAL("Highest individual score"),
@@ -9,6 +10,13 @@ enum class LeaderboardType(val title: String) {
 
     companion object {
         fun getLeaderboardTypeList(): List<LeaderboardType> =
-            listOf(MOST_RUNS, AVERAGE, HIGHEST_INDIVIDUAL, MOST_WICKETS, MOST_CATCHES)
+            listOf(
+                MOST_RUNS,
+                MOST_VALUABLE_PLAYER,
+                AVERAGE,
+                HIGHEST_INDIVIDUAL,
+                MOST_WICKETS,
+                MOST_CATCHES
+            )
     }
 }

@@ -38,7 +38,6 @@ import androidx.navigation.NavHostController
 import com.vraj.trackmyscore.R
 import com.vraj.trackmyscore.data.entity.PlayerEntity
 import com.vraj.trackmyscore.util.LeaderboardType
-import com.vraj.trackmyscore.util.extension.toStringByLimitingDecimalDigits
 import com.vraj.trackmyscore.viewmodel.MainViewModel
 
 @Composable
@@ -89,12 +88,22 @@ fun LeaderboardScreen(
         )
 
         when(selectedLeaderboardType) {
+            LeaderboardType.MOST_VALUABLE_PLAYER -> LazyColumn {
+                players.map { it.player }
+                    .sortedByDescending { it.mvpScore }
+                    .let { sortedPlayers ->
+                        items(sortedPlayers, key = { it.id }) { player ->
+                            PlayerItem(player = player, value = player.mvpScoreString)
+                        }
+                    }
+            }
+
             LeaderboardType.MOST_RUNS -> LazyColumn {
                 players.map { it.player }
                     .sortedByDescending { it.runs }
                     .let { sortedPlayers ->
                         items(sortedPlayers, key = { it.id }) { player ->
-                            PlayerItem(player = player, value = player.runs.toDouble())
+                            PlayerItem(player = player, value = player.runs.toString())
                         }
                     }
             }
@@ -104,7 +113,7 @@ fun LeaderboardScreen(
                     .sortedByDescending { it.average }
                     .let { sortedPlayers ->
                         items(sortedPlayers, key = { it.id }) { player ->
-                            PlayerItem(player = player, value = player.average, false)
+                            PlayerItem(player = player, value = player.averageString)
                         }
                     }
             }
@@ -114,7 +123,7 @@ fun LeaderboardScreen(
                     .sortedByDescending { it.highestScore }
                     .let { sortedPlayers ->
                         items(sortedPlayers, key = { it.id }) { player ->
-                            PlayerItem(player = player, value = player.highestScore.toDouble())
+                            PlayerItem(player = player, value = player.highestScore.toString())
                         }
                     }
             }
@@ -124,7 +133,7 @@ fun LeaderboardScreen(
                     .sortedByDescending { it.wickets }
                     .let { sortedPlayers ->
                         items(sortedPlayers, key = { it.id }) { player ->
-                            PlayerItem(player = player, value = player.wickets.toDouble())
+                            PlayerItem(player = player, value = player.wickets.toString())
                         }
                     }
             }
@@ -134,7 +143,7 @@ fun LeaderboardScreen(
                     .sortedByDescending { it.catches }
                     .let { sortedPlayers ->
                         items(sortedPlayers, key = { it.id }) { player ->
-                            PlayerItem(player = player, value = player.catches.toDouble())
+                            PlayerItem(player = player, value = player.catches.toString())
                         }
                     }
             }
@@ -143,7 +152,7 @@ fun LeaderboardScreen(
 }
 
 @Composable
-private fun PlayerItem(player: PlayerEntity, value: Double, canBeLongValue: Boolean = true) {
+private fun PlayerItem(player: PlayerEntity, value: String) {
     Column(
         verticalArrangement = Arrangement.spacedBy(15.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -179,9 +188,7 @@ private fun PlayerItem(player: PlayerEntity, value: Double, canBeLongValue: Bool
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
-                text = if (canBeLongValue)
-                    value.toLong().toString()
-                else value.toStringByLimitingDecimalDigits(2),
+                text = value,
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White
             )

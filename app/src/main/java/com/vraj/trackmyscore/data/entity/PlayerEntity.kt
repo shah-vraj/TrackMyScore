@@ -9,6 +9,7 @@ import com.vraj.trackmyscore.ui.theme.InitialsOne
 import com.vraj.trackmyscore.ui.theme.InitialsThree
 import com.vraj.trackmyscore.ui.theme.InitialsTwo
 import com.vraj.trackmyscore.ui.theme.InitialsZero
+import com.vraj.trackmyscore.util.extension.toStringByLimitingDecimalDigits
 
 @Entity(tableName = "Player")
 data class PlayerEntity(
@@ -36,6 +37,15 @@ data class PlayerEntity(
 ) {
     val average: Double
         get() = if (outs == 0L) runs.toDouble() else runs.toDouble() / outs
+
+    val averageString: String
+        get() = average.toStringByLimitingDecimalDigits(2)
+
+    val mvpScore: Double
+        get() = runs * 2 + average * 5 + wickets * 10 + catches * 5
+
+    val mvpScoreString: String
+        get() = mvpScore.toStringByLimitingDecimalDigits(2)
 
     val initials: String
         get() {
