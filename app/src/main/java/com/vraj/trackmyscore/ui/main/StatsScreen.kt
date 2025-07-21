@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +40,8 @@ import androidx.compose.ui.zIndex
 import androidx.navigation.NavHostController
 import com.vraj.trackmyscore.R
 import com.vraj.trackmyscore.data.entity.PlayerEntity
+import com.vraj.trackmyscore.model.SelectablePlayer
+import com.vraj.trackmyscore.util.LeaderboardType
 import com.vraj.trackmyscore.viewmodel.MainViewModel
 
 @Composable
@@ -100,24 +103,48 @@ fun StatsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                StatItem(value = selectedPlayer.runs.toString(), category = "Runs")
-                StatItem(value = selectedPlayer.wickets.toString(), category = "Wickets")
+                StatItem(
+                    value = selectedPlayer.runs.toString(),
+                    category = "Runs",
+                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.MOST_RUNS)
+                )
+                StatItem(
+                    value = selectedPlayer.wickets.toString(),
+                    category = "Wickets",
+                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.MOST_WICKETS)
+                )
             }
 
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                StatItem(value = selectedPlayer.averageString, category = "Average")
-                StatItem(value = selectedPlayer.highestScore.toString(), category = "Highest score")
+                StatItem(
+                    value = selectedPlayer.averageString,
+                    category = "Average",
+                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.AVERAGE)
+                )
+                StatItem(
+                    value = selectedPlayer.highestScore.toString(),
+                    category = "Highest score",
+                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.HIGHEST_INDIVIDUAL)
+                )
             }
 
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                StatItem(value = selectedPlayer.catches.toString(), category = "Catches")
-                StatItem(value = selectedPlayer.mvpScoreString, category = "MVP points")
+                StatItem(
+                    value = selectedPlayer.catches.toString(),
+                    category = "Catches",
+                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.MOST_CATCHES)
+                )
+                StatItem(
+                    value = selectedPlayer.mvpScoreString,
+                    category = "MVP points",
+                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.MOST_VALUABLE_PLAYER)
+                )
             }
         }
     }
@@ -127,43 +154,63 @@ fun StatsScreen(
 fun StatItem(
     value: String,
     category: String,
+    rank: Int,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy((-12).dp),
-        modifier = modifier
+    Row(
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy((-10).dp)
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .width(150.dp)
-                .height(120.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.primary)
-                .border(1.dp, Color.White, RoundedCornerShape(10.dp))
-                .zIndex(1f)
+        Column(
+            verticalArrangement = Arrangement.spacedBy((-12).dp),
+            modifier = modifier
         ) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSecondary
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .width(140.dp)
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .border(1.dp, Color.White, RoundedCornerShape(10.dp))
+                    .zIndex(1f)
+            ) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSecondary
+                )
+            }
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .width(140.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White)
+                    .padding(top = 20.dp, bottom = 12.dp)
+            ) {
+                Text(
+                    text = category,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .width(150.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(20.dp)
+                .offset(y = (-10).dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(Color.White)
-                .padding(top = 20.dp, bottom = 12.dp)
         ) {
             Text(
-                text = category,
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.primary
+                text = rank.toString(),
+                style = MaterialTheme.typography.labelSmall
             )
         }
     }
@@ -221,3 +268,21 @@ private fun PlayerDropdownItem(
         }
     }
 }
+
+private fun getRankForPlayer(
+    playerId: Int,
+    selectablePlayers: List<SelectablePlayer>,
+    type: LeaderboardType
+) = selectablePlayers
+    .map { it.player }
+    .let { players ->
+        when (type) {
+            LeaderboardType.MOST_VALUABLE_PLAYER -> players.sortedByDescending { it.mvpScore }
+            LeaderboardType.MOST_RUNS -> players.sortedByDescending { it.runs }
+            LeaderboardType.AVERAGE -> players.sortedByDescending { it.average }
+            LeaderboardType.HIGHEST_INDIVIDUAL -> players.sortedByDescending { it.highestScore }
+            LeaderboardType.MOST_WICKETS -> players.sortedByDescending { it.wickets }
+            LeaderboardType.MOST_CATCHES -> players.sortedByDescending { it.catches }
+        }
+    }
+    .indexOfFirst { it.id == playerId } + 1

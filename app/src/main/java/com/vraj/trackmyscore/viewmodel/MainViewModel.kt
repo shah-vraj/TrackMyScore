@@ -71,7 +71,7 @@ class MainViewModel @Inject constructor(
     private val _batterActions = MutableStateFlow(BatterAction.actionList.map { it to false })
     val batterActions = _batterActions.asStateFlow()
 
-    private val _selectedLeaderboardType = MutableStateFlow(LeaderboardType.MOST_VALUABLE_PLAYER)
+    private val _selectedLeaderboardType = MutableStateFlow(LeaderboardType.MOST_RUNS)
     val selectedLeaderboardType = _selectedLeaderboardType.asStateFlow()
 
     val inGamePlayers = players.map {

@@ -20,7 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getPlayerDao(): PlayerDao
 
     companion object {
-        private const val DATABASE_NAME = "kachu-ful-database"
+        private const val DATABASE_NAME = "track-my-score-database"
 
         @Volatile private var instance: AppDatabase? = null
 
