@@ -1,18 +1,22 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.jetbrains.kotlin.android)
-    alias(libs.plugins.jetbrains.kotlin.kapt)
-    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.jetbrainsKotlinAndroid)
+    alias(libs.plugins.jetbrainsKotlinKapt)
+    alias(libs.plugins.hiltAndroid)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.jetbrainsKotlinSerialization)
 }
 
 android {
     namespace = "com.vraj.trackmyscore"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.vraj.trackmyscore"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -32,23 +36,21 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-    buildFeatures {
-        compose = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
         }
     }
+
+    buildFeatures { compose = true }
+
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.7" }
+
+    packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }
 
 dependencies {

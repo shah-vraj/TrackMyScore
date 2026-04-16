@@ -13,7 +13,7 @@ private val colorScheme = darkColorScheme(
 )
 
 @Composable
-fun KachuFulScoreCounterTheme(content: @Composable () -> Unit) {
+fun TrackMyScoreTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = colorScheme,
         typography = PoppinsTypography,

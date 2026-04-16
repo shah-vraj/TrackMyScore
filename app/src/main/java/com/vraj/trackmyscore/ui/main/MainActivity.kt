@@ -16,7 +16,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.vraj.trackmyscore.ui.theme.KachuFulScoreCounterTheme
+import com.vraj.trackmyscore.ui.theme.TrackMyScoreTheme
 import com.vraj.trackmyscore.util.MainScreen
 import com.vraj.trackmyscore.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            KachuFulScoreCounterTheme {
+            TrackMyScoreTheme {
                 val navHostController = rememberNavController()
                 val viewModel: MainViewModel = hiltViewModel()
 
