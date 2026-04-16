@@ -1,23 +1,29 @@
 package com.vraj.trackmyscore.ui.main
 
 import android.widget.Toast
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -32,13 +38,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.vraj.trackmyscore.R
 import com.vraj.trackmyscore.model.AlertDialogData
@@ -46,6 +56,9 @@ import com.vraj.trackmyscore.model.SelectablePlayer
 import com.vraj.trackmyscore.ui.base.BaseButton
 import com.vraj.trackmyscore.ui.base.BaseConfirmationDialog
 import com.vraj.trackmyscore.ui.base.BaseTextField
+import com.vraj.trackmyscore.ui.theme.BorderWhite
+import com.vraj.trackmyscore.ui.theme.GlassWhite
+import com.vraj.trackmyscore.ui.theme.GradientStadium
 import com.vraj.trackmyscore.ui.theme.Green
 import com.vraj.trackmyscore.util.MainScreen
 import com.vraj.trackmyscore.viewmodel.MainViewModel
@@ -65,29 +78,35 @@ fun PlayersScreen(
     HandleAlertDialog(mainViewModel)
 
     Column(
-        verticalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 30.dp)
+            .padding(vertical = 10.dp)
     ) {
+        Text(
+            text = "Dressing Room",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            ),
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 10.dp)
+        )
+
         Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(15.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             BaseButton(
                 text = stringResource(R.string.txt_leaderboard),
-                modifier = Modifier
-                    .weight(0.6f)
-                    .padding(horizontal = 10.dp),
+                modifier = Modifier.weight(1f),
                 onButtonClicked = { navHostController.navigate(MainScreen.LeaderboardScreen.route) }
             )
 
             BaseButton(
                 text = stringResource(R.string.txt_stats),
-                modifier = Modifier
-                    .weight(0.4f)
-                    .padding(horizontal = 10.dp)
+                modifier = Modifier.weight(1f)
             ) {
                 navHostController.navigate(MainScreen.StatsScreen.route)
             }
@@ -96,49 +115,50 @@ fun PlayersScreen(
         if (players.isEmpty()) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxHeight(0.7f)
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(GlassWhite)
+                    .border(1.dp, BorderWhite, RoundedCornerShape(20.dp))
             ) {
                 Text(
                     text = stringResource(R.string.txt_add_players_to_start_game),
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = Color.White.copy(alpha = 0.7f),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
         } else {
-            PlayersList(
+            PlayersGrid(
                 players = players,
                 mainViewModel = mainViewModel,
-                modifier = Modifier
-                    .fillMaxHeight(0.7f)
-                    .fillMaxWidth()
+                modifier = Modifier.weight(1f)
             )
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(15.dp),
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            BaseTextField(
-                textFieldValue = newPlayerName,
-                onValueChanged = { newPlayerName = it },
-                placeholder = stringResource(R.string.txt_placeholder_player_name),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words
-                ),
-                modifier = Modifier.weight(1f)
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.25f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Green)
-                    .padding(horizontal = 15.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
+                BaseTextField(
+                    textFieldValue = newPlayerName,
+                    onValueChanged = { newPlayerName = it },
+                    placeholder = stringResource(R.string.txt_placeholder_player_name),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+
                 BaseButton(
                     text = stringResource(id = R.string.txt_add),
-                    backgroundColor = Green
+                    modifier = Modifier.width(80.dp),
+                    brush = Brush.horizontalGradient(GradientStadium)
                 ) {
                     mainViewModel.addPlayerIfExists(newPlayerName.trim()) {
                         newPlayerName = ""
@@ -146,18 +166,22 @@ fun PlayersScreen(
                     }
                 }
             }
+
+            if (errorMessageId != INVALID_ERROR_MESSAGE_ID) {
+                Text(
+                    text = stringResource(id = errorMessageId),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFFFF4444),
+                    modifier = Modifier.padding(horizontal = 5.dp)
+                )
+            }
         }
 
-        if (errorMessageId != INVALID_ERROR_MESSAGE_ID) {
-            Text(
-                text = stringResource(id = errorMessageId),
-                style = MaterialTheme.typography.labelMedium,
-                color = Color.Red
-            )
-        }
-
-        BaseButton(text = stringResource(R.string.txt_start_game)) {
-            if (players.map { it.isSelected }.count() >= 2) {
+        BaseButton(
+            text = stringResource(R.string.txt_start_game),
+            brush = Brush.horizontalGradient(listOf(Color(0xFFDD600B), Color(0xFFFF8C42)))
+        ) {
+            if (players.map { it.isSelected }.count { it } >= 2) {
                 navHostController.navigate(MainScreen.GameScreen.route)
                 return@BaseButton
             }
@@ -172,16 +196,27 @@ fun PlayersScreen(
 }
 
 @Composable
-private fun PlayersList(
+private fun PlayersGrid(
     players: List<SelectablePlayer>,
     mainViewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val gridState = rememberLazyGridState()
 
-    LazyColumn(modifier = modifier) {
-        items(players) {
-            PlayerItem(
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        state = gridState,
+        contentPadding = PaddingValues(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier
+    ) {
+        items(
+            items = players,
+            key = { it.player.id }
+        ) {
+            PlayerCard(
                 mainViewModel = mainViewModel,
                 selectablePlayer = it,
                 onSelectPlayer = { isSelected ->
@@ -195,79 +230,91 @@ private fun PlayersList(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PlayerItem(
+private fun PlayerCard(
     mainViewModel: MainViewModel,
     selectablePlayer: SelectablePlayer,
     onSelectPlayer: (Boolean) -> Unit,
     getStringResource: (Int) -> String
 ) {
     val player = selectablePlayer.player
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "scale"
+    )
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(15.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(10.dp)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(15.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onLongClick = {
-                        val alertDialogData = AlertDialogData(
-                            title = getStringResource(R.string.txt_remove_player),
-                            message = getStringResource(R.string.txt_remove_player_message),
-                            subMessage = player.name,
-                            onConfirmAction = {
-                                mainViewModel.apply {
-                                    removePlayer(player.id)
-                                    showAlertDialog(null)
-                                }
+    Box(
+        modifier = Modifier
+            .scale(scale)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selectablePlayer.isSelected) Color.White.copy(alpha = 0.15f) else GlassWhite)
+            .border(
+                width = if (selectablePlayer.isSelected) 2.dp else 1.dp,
+                color = if (selectablePlayer.isSelected) Color.White else BorderWhite,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onLongClick = {
+                    val alertDialogData = AlertDialogData(
+                        title = getStringResource(R.string.txt_remove_player),
+                        message = getStringResource(R.string.txt_remove_player_message),
+                        subMessage = player.name,
+                        onConfirmAction = {
+                            mainViewModel.apply {
+                                removePlayer(player.id)
+                                showAlertDialog(null)
                             }
-                        )
-                        mainViewModel.showAlertDialog(alertDialogData)
-                    },
-                    onClick = { onSelectPlayer(!selectablePlayer.isSelected) }
-                )
+                        }
+                    )
+                    mainViewModel.showAlertDialog(alertDialogData)
+                },
+                onClick = { onSelectPlayer(!selectablePlayer.isSelected) }
+            )
+            .padding(16.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(60.dp)
                     .clip(CircleShape)
-                    .background(player.color)
+                    .background(player.color.copy(alpha = 0.8f))
+                    .border(2.dp, Color.White.copy(alpha = 0.5f), CircleShape)
             ) {
                 Text(
                     text = player.initials,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
             }
 
             Text(
                 text = player.name,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = Color.White,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
-
-            Spacer(modifier = Modifier.weight(1f))
 
             if (selectablePlayer.isSelected) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_tick),
-                    contentDescription = "Player selection",
-                    modifier = Modifier.padding(5.dp)
+                    contentDescription = "Selected",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(Green, CircleShape)
+                        .padding(4.dp)
                 )
             }
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color.Gray)
-        )
     }
 }
 

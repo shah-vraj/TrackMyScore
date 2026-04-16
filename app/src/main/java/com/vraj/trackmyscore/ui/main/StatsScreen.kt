@@ -11,14 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,14 +32,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.vraj.trackmyscore.R
 import com.vraj.trackmyscore.data.entity.PlayerEntity
 import com.vraj.trackmyscore.model.SelectablePlayer
+import com.vraj.trackmyscore.ui.base.BaseDropdown
+import com.vraj.trackmyscore.ui.theme.BorderWhite
+import com.vraj.trackmyscore.ui.theme.GlassWhite
 import com.vraj.trackmyscore.util.LeaderboardType
 import com.vraj.trackmyscore.viewmodel.MainViewModel
 
@@ -51,220 +52,218 @@ fun StatsScreen(
 ) {
     val players by viewModel.players.collectAsState()
     var selectedPlayer by remember { mutableStateOf(PlayerEntity.dummy) }
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(true) {
         viewModel.updateData()
     }
 
     LaunchedEffect(players) {
-        selectedPlayer = players.firstOrNull()?.player ?: PlayerEntity.dummy
+        if (selectedPlayer.id == -1) {
+            selectedPlayer = players.firstOrNull()?.player ?: PlayerEntity.dummy
+        } else {
+            selectedPlayer = players.find { it.player.id == selectedPlayer.id }?.player ?: selectedPlayer
+        }
     }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(25.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 15.dp)
+            .padding(top = 10.dp)
+            .verticalScroll(scrollState)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.fillMaxWidth()
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_back),
                 contentDescription = "back",
                 modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(GlassWhite)
                     .clickable { navHostController.popBackStack() }
+                    .padding(8.dp)
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
-                text = stringResource(id = R.string.txt_stats),
-                style = MaterialTheme.typography.titleLarge,
+                text = "Player Stats",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 color = Color.White
             )
 
             Spacer(modifier = Modifier.weight(1f))
+            Box(modifier = Modifier.size(32.dp))
         }
 
-        PlayerDropdownItem(
-            selectedPlayer = selectedPlayer,
-            players = players.map { it.player },
+        BaseDropdown(
+            selectedItemName = selectedPlayer.name,
+            items = players.map { it.player },
+            getItemName = { it.name },
             onItemSelected = { selectedPlayer = it }
         )
 
-        Column(
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                StatItem(
-                    value = selectedPlayer.runs.toString(),
-                    category = "Runs",
-                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.MOST_RUNS)
-                )
-                StatItem(
-                    value = selectedPlayer.wickets.toString(),
-                    category = "Wickets",
-                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.MOST_WICKETS)
-                )
-            }
+        if (selectedPlayer.id != -1) {
+            PlayerBioCard(player = selectedPlayer)
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                StatItem(
-                    value = selectedPlayer.averageString,
-                    category = "Average",
-                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.AVERAGE)
-                )
-                StatItem(
-                    value = selectedPlayer.highestScore.toString(),
-                    category = "Highest score",
-                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.HIGHEST_INDIVIDUAL)
-                )
-            }
+            // Replaced LazyVerticalGrid with a manual column of rows to avoid 
+            // conflicting scroll behaviors and choppiness within the verticalScroll.
+            StatsGrid(
+                selectedPlayer = selectedPlayer,
+                players = players
+            )
+        }
+    }
+}
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                StatItem(
-                    value = selectedPlayer.catches.toString(),
-                    category = "Catches",
-                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.MOST_CATCHES)
-                )
-                StatItem(
-                    value = selectedPlayer.mvpScoreString,
-                    category = "MVP points",
-                    rank = getRankForPlayer(selectedPlayer.id, players, LeaderboardType.MOST_VALUABLE_PLAYER)
-                )
+@Composable
+private fun StatsGrid(
+    selectedPlayer: PlayerEntity,
+    players: List<SelectablePlayer>
+) {
+    val stats = listOf(
+        Triple("Runs", selectedPlayer.runs.toString(), LeaderboardType.MOST_RUNS),
+        Triple("Wickets", selectedPlayer.wickets.toString(), LeaderboardType.MOST_WICKETS),
+        Triple("Average", selectedPlayer.averageString, LeaderboardType.AVERAGE),
+        Triple("High Score", selectedPlayer.highestScore.toString(), LeaderboardType.HIGHEST_INDIVIDUAL),
+        Triple("Catches", selectedPlayer.catches.toString(), LeaderboardType.MOST_CATCHES),
+        Triple("MVP Points", selectedPlayer.mvpScoreString, LeaderboardType.MOST_VALUABLE_PLAYER)
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        stats.chunked(2).forEach { rowStats ->
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                rowStats.forEach { (label, value, type) ->
+                    StatCard(
+                        value = value,
+                        category = label,
+                        rank = getRankForPlayer(selectedPlayer.id, players, type),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (rowStats.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
 }
 
 @Composable
-fun StatItem(
+private fun PlayerBioCard(player: PlayerEntity) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(GlassWhite)
+            .border(1.dp, BorderWhite, RoundedCornerShape(24.dp))
+            .padding(20.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(player.color.copy(alpha = 0.8f))
+                    .border(3.dp, Color.White, CircleShape)
+            ) {
+                Text(
+                    text = player.initials,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
+                )
+            }
+
+            Column {
+                Text(
+                    text = player.name,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "MVP SCORE",
+                        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 2.sp),
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = player.mvpScoreString,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color(0xFFFFD700) // Gold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatCard(
     value: String,
     category: String,
     rank: Int,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy((-10).dp)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(GlassWhite)
+            .border(1.dp, BorderWhite, RoundedCornerShape(20.dp))
+            .padding(16.dp)
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy((-12).dp),
-            modifier = modifier
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .width(140.dp)
-                    .height(120.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.primary)
-                    .border(1.dp, Color.White, RoundedCornerShape(10.dp))
-                    .zIndex(1f)
-            ) {
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSecondary
-                )
-            }
-
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .width(140.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color.White)
-                    .padding(top = 20.dp, bottom = 12.dp)
-            ) {
-                Text(
-                    text = category,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Black,
+                    fontSize = 24.sp
+                ),
+                color = Color.White
+            )
+            Text(
+                text = category.uppercase(),
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                color = Color.White.copy(alpha = 0.5f)
+            )
         }
 
+        // Rank Badge
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(20.dp)
-                .offset(y = (-10).dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.White)
+                .align(Alignment.TopEnd)
+                .offset(x = 8.dp, y = (-8).dp)
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(
+                    when (rank) {
+                        1 -> Color(0xFFFFD700) // Gold
+                        2 -> Color(0xFFC0C0C0) // Silver
+                        3 -> Color(0xFFCD7F32) // Bronze
+                        else -> Color.White.copy(alpha = 0.2f)
+                    }
+                )
         ) {
             Text(
                 text = rank.toString(),
-                style = MaterialTheme.typography.labelSmall
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                color = if (rank in 1..3) Color.Black else Color.White
             )
-        }
-    }
-}
-
-@Composable
-private fun PlayerDropdownItem(
-    selectedPlayer: PlayerEntity,
-    players: List<PlayerEntity>,
-    onItemSelected: (PlayerEntity) -> Unit
-) {
-    var isDropDownExpanded by remember { mutableStateOf(false) }
-
-    Row(
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(5.dp)
-    ) {
-        Box {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable {
-                    isDropDownExpanded = true
-                }
-            ) {
-                Text(
-                    text = selectedPlayer.name,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Image(
-                    painter = painterResource(id = R.drawable.ic_drop_down),
-                    contentDescription = "DropDown Icon"
-                )
-            }
-
-            DropdownMenu(
-                expanded = isDropDownExpanded,
-                onDismissRequest = {
-                    isDropDownExpanded = false
-                }) {
-                players.forEach { type ->
-                    DropdownMenuItem(
-                        text = { Text(text = type.name) },
-                        onClick = {
-                            isDropDownExpanded = false
-                            onItemSelected(type)
-                        }
-                    )
-                }
-            }
         }
     }
 }
