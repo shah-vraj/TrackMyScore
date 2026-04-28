@@ -3,6 +3,7 @@ package com.vraj.trackmyscore.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vraj.trackmyscore.R
+import com.vraj.trackmyscore.data.entity.MatchPlayerEntity
 import com.vraj.trackmyscore.data.entity.PlayerEntity
 import com.vraj.trackmyscore.data.repository.PlayerRepository
 import com.vraj.trackmyscore.di.IoDispatcher
@@ -25,16 +26,22 @@ import com.vraj.trackmyscore.util.BatterAction.ZERO
 import com.vraj.trackmyscore.util.LeaderboardType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     private val appSharedPreferences: AppSharedPreferences,
 ) : ViewModel() {
 
@@ -74,6 +81,23 @@ class MainViewModel @Inject constructor(
     private val _selectedLeaderboardType = MutableStateFlow(LeaderboardType.MOST_RUNS)
     val selectedLeaderboardType = _selectedLeaderboardType.asStateFlow()
 
+    val matchPlayers = playerRepository.getAllMatchPlayers().stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    val battingOrderList = combine(matchPlayers, players) { mPlayers, pList ->
+        mPlayers.mapNotNull { mp ->
+            pList.find { it.player.id == mp.playerId }?.let { sp ->
+                Triple(mp, sp.player, mp.hasBattedInRound)
+            }
+        }.sortedBy { it.first.battingOrder }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _roundSummary = MutableStateFlow<List<Pair<PlayerEntity, Long>>?>(null)
+    val roundSummary = _roundSummary.asStateFlow()
+
     val inGamePlayers = players.map {
         val players = it.filter { gamePlayer -> gamePlayer.isSelected }
             .map { gamePlayer -> gamePlayer.player }
@@ -85,6 +109,30 @@ class MainViewModel @Inject constructor(
 
     init {
         updateData()
+    }
+
+    private suspend fun refreshAutoSelection() {
+        val mPlayers = playerRepository.getAllMatchPlayers().first()
+        val allPlayers = playerRepository.getAllPlayers()
+
+        if (_currentBatter.value.id == INVALID_ID && mPlayers.isNotEmpty()) {
+            val order = mPlayers.mapNotNull { mp ->
+                allPlayers.find { it.id == mp.playerId }?.let { p ->
+                    Triple(mp, p, mp.hasBattedInRound)
+                }
+            }.sortedBy { it.first.battingOrder }
+
+            if (order.isNotEmpty()) {
+                val upcoming = order.filter { !it.third }
+                val nextBatterTriple = upcoming.firstOrNull() ?: order[0]
+
+                _selectedBatsman.value = nextBatterTriple.second
+
+                val idx = order.indexOf(nextBatterTriple)
+                val bowlerIdx = (idx + 1) % order.size
+                _selectedBowler.value = order[bowlerIdx].second
+            }
+        }
     }
 
     fun updateData() {
@@ -105,7 +153,9 @@ class MainViewModel @Inject constructor(
             } ?: run {
                 _errorMessage.value = INVALID_ERROR_MESSAGE_ID
                 addPlayer(name)
-                completion()
+                withContext(Dispatchers.Main) {
+                    completion()
+                }
             }
         }
     }
@@ -131,16 +181,17 @@ class MainViewModel @Inject constructor(
 
     fun fetchCurrentBatter() {
         with(appSharedPreferences) {
+            val currentId = getCurrentBatterId()
             _players.value.find {
-                it.player.id == getCurrentBatterId()
+                it.player.id == currentId
             }?.let {
                 _currentBatter.value = it.player
                 _selectedBatsman.value = it.player
                 _currentBatterRuns.value = getCurrentBatterRuns()
             } ?: run {
                 _currentBatter.value = PlayerEntity.dummy
-                _selectedBatsman.value = PlayerEntity.dummy
                 _currentBatterRuns.value = getCurrentBatterRuns()
+                // Don't reset _selectedBatsman here, let the batting order observer handle it
             }
         }
     }
@@ -165,15 +216,80 @@ class MainViewModel @Inject constructor(
         _selectedLeaderboardType.value = type
     }
 
+    fun shuffleMatchOrder() {
+        viewModelScope.launch(ioDispatcher) {
+            val current = matchPlayers.value
+            if (current.isEmpty()) return@launch
+            val shuffled = current.shuffled().mapIndexed { index, mp ->
+                mp.copy(battingOrder = index)
+            }
+            playerRepository.updateMatchPlayers(shuffled)
+            refreshAutoSelection()
+        }
+    }
+
+    fun moveMatchPlayer(fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch(ioDispatcher) {
+            val list = matchPlayers.value.toMutableList()
+            if (fromIndex !in list.indices || toIndex !in list.indices) return@launch
+            val item = list.removeAt(fromIndex)
+            list.add(toIndex, item)
+            val updated = list.mapIndexed { index, mp ->
+                mp.copy(battingOrder = index)
+            }
+            playerRepository.updateMatchPlayers(updated)
+            refreshAutoSelection()
+        }
+    }
+
+    fun startNewMatch(completion: () -> Unit) {
+        viewModelScope.launch(ioDispatcher) {
+            playerRepository.clearMatch()
+            updatePlayers()
+            val selected = _players.value.filter { it.isSelected }.map { it.player }
+            if (selected.size < 2) return@launch
+
+            val initialMatchPlayers = selected.shuffled().mapIndexed { index, player ->
+                MatchPlayerEntity(
+                    playerId = player.id,
+                    battingOrder = index
+                )
+            }
+            playerRepository.insertMatchPlayers(initialMatchPlayers)
+            refreshAutoSelection()
+
+            withContext(Dispatchers.Main) {
+                completion()
+            }
+        }
+    }
+
     fun startInnings() {
-        with(appSharedPreferences) {
-            players.value.find {
-                _selectedBatsman.value.id == it.player.id
-            }?.let {
-                _currentBatter.value = it.player
-                setCurrentBatterId(it.player.id)
-                setCurrentBatterRuns(0L)
-                fetchCurrentBatter()
+        viewModelScope.launch(ioDispatcher) {
+            val selectedPlayers = _players.value.filter { it.isSelected }.map { it.player }
+            if (selectedPlayers.size < 2) return@launch
+
+            // If it's a new match, initialize MatchPlayers with shuffle
+            val existingMatch = playerRepository.getAllMatchPlayers().first()
+            if (existingMatch.isEmpty()) {
+                val initialMatchPlayers = selectedPlayers.shuffled().mapIndexed { index, player ->
+                    MatchPlayerEntity(
+                        playerId = player.id,
+                        battingOrder = index
+                    )
+                }
+                playerRepository.insertMatchPlayers(initialMatchPlayers)
+            }
+
+            with(appSharedPreferences) {
+                _players.value.find {
+                    _selectedBatsman.value.id == it.player.id
+                }?.let {
+                    _currentBatter.value = it.player
+                    setCurrentBatterId(it.player.id)
+                    setCurrentBatterRuns(0L)
+                    fetchCurrentBatter()
+                }
             }
         }
     }
@@ -197,6 +313,7 @@ class MainViewModel @Inject constructor(
                         _selectedDirectRuns.value.toLongOrNull() ?: 0
                     else action.runs
                     playerRepository.addRuns(_currentBatter.value.id, runs)
+                    playerRepository.addMatchRuns(_currentBatter.value.id, runs)
                     appSharedPreferences.apply {
                         setCurrentBatterRuns(getCurrentBatterRuns() + runs)
                     }
@@ -213,10 +330,16 @@ class MainViewModel @Inject constructor(
                     }
 
                     playerRepository.addOut(_selectedBatsman.value.id)
-                    playerRepository.addWicket(_selectedBowler.value.id).also {
-                        if (action == WK_CATCH)
-                            playerRepository.addCatch(_selectedCatcher.value.id)
+                    playerRepository.addMatchOut(_selectedBatsman.value.id)
+                    
+                    playerRepository.addWicket(_selectedBowler.value.id)
+                    playerRepository.addMatchWicket(_selectedBowler.value.id)
+
+                    if (action == WK_CATCH) {
+                        playerRepository.addCatch(_selectedCatcher.value.id)
+                        playerRepository.addMatchCatch(_selectedCatcher.value.id)
                     }
+
                     endInnings()
                 }
                 RETIRED_HURT -> endInnings()
@@ -261,15 +384,56 @@ class MainViewModel @Inject constructor(
     private suspend fun endInnings() {
         with(appSharedPreferences) {
             updatePlayers()
+            val allPlayers = playerRepository.getAllPlayers()
+
             _players.value.find { it.player.id == _currentBatter.value.id }?.let {
                 val currentRuns = getCurrentBatterRuns()
                 if (currentRuns > it.player.highestScore)
                     playerRepository.setHighestScore(it.player.id, currentRuns)
             }
+
+            playerRepository.markAsBatted(_currentBatter.value.id)
+
+            // Check if round is over
+            val currentMatchPlayers = playerRepository.getAllMatchPlayers().first()
+            if (currentMatchPlayers.all { it.hasBattedInRound }) {
+                // Prepare summary data before resetting
+                
+                // Sort by runs (desc) then by current batting order (asc) for tie-breaking
+                val sortedCurrentMatchPlayers = currentMatchPlayers.sortedWith(
+                    compareByDescending<MatchPlayerEntity> { it.roundRuns }
+                        .thenBy { it.battingOrder }
+                )
+
+                val summaryData = sortedCurrentMatchPlayers.mapNotNull { mp ->
+                    allPlayers.find { it.id == mp.playerId }?.let { 
+                        it to mp.roundRuns 
+                    }
+                }
+                
+                _roundSummary.value = summaryData
+
+                // Round Over! Sort by roundRuns and start new round
+                val nextOrderPlayers = sortedCurrentMatchPlayers.mapIndexed { index, player ->
+                    player.copy(
+                        battingOrder = index,
+                        roundRuns = 0,
+                        hasBattedInRound = false
+                    )
+                }
+                playerRepository.updateMatchPlayers(nextOrderPlayers)
+                _toastMessage.value = R.string.txt_round_completed_new_order
+            }
+
             setCurrentBatterId(INVALID_ID)
             setCurrentBatterRuns(0L)
             fetchCurrentBatter()
+            refreshAutoSelection()
         }
+    }
+
+    fun dismissRoundSummary() {
+        _roundSummary.value = null
     }
 
     companion object {

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.vraj.trackmyscore.R
+import com.vraj.trackmyscore.data.entity.MatchPlayerEntity
 import com.vraj.trackmyscore.data.entity.PlayerEntity
 import com.vraj.trackmyscore.ui.base.BaseDropdown
 import com.vraj.trackmyscore.ui.theme.BorderWhite
@@ -50,21 +51,25 @@ fun LeaderboardScreen(
     mainViewModel: MainViewModel
 ) {
     val players by mainViewModel.players.collectAsState()
+    val matchPlayers by mainViewModel.matchPlayers.collectAsState()
     val selectedLeaderboardType by mainViewModel.selectedLeaderboardType.collectAsState()
 
     LaunchedEffect(true) {
         mainViewModel.updateData()
     }
 
-    val sortedPlayers = remember(players, selectedLeaderboardType) {
+    val sortedItems = remember(players, matchPlayers, selectedLeaderboardType) {
         val playerList = players.map { it.player }
-        when (selectedLeaderboardType) {
+        val sortedList = when (selectedLeaderboardType) {
             LeaderboardType.MOST_VALUABLE_PLAYER -> playerList.sortedByDescending { it.mvpScore }
             LeaderboardType.MOST_RUNS -> playerList.sortedByDescending { it.runs }
             LeaderboardType.AVERAGE -> playerList.sortedByDescending { it.average }
             LeaderboardType.HIGHEST_INDIVIDUAL -> playerList.sortedByDescending { it.highestScore }
             LeaderboardType.MOST_WICKETS -> playerList.sortedByDescending { it.wickets }
             LeaderboardType.MOST_CATCHES -> playerList.sortedByDescending { it.catches }
+        }
+        sortedList.map { p ->
+            p to matchPlayers.find { it.playerId == p.id }
         }
     }
 
@@ -108,21 +113,22 @@ fun LeaderboardScreen(
             onItemSelected = { mainViewModel.setSelectedLeaderboardType(it) }
         )
 
-        if (sortedPlayers.isNotEmpty()) {
-            PodiumSection(players = sortedPlayers.take(3), type = selectedLeaderboardType)
+        if (sortedItems.isNotEmpty()) {
+            PodiumSection(items = sortedItems.take(3), type = selectedLeaderboardType)
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 itemsIndexed(
-                    items = sortedPlayers.drop(3),
-                    key = { _, player -> player.id }
-                ) { index, player ->
+                    items = sortedItems.drop(3),
+                    key = { _, pair -> pair.first.id }
+                ) { index, (player, matchPlayer) ->
                     HallOfFameItem(
                         player = player,
+                        matchPlayer = matchPlayer,
                         rank = index + 4,
-                        value = getStatValue(player, selectedLeaderboardType)
+                        type = selectedLeaderboardType
                     )
                 }
             }
@@ -131,7 +137,7 @@ fun LeaderboardScreen(
 }
 
 @Composable
-private fun PodiumSection(players: List<PlayerEntity>, type: LeaderboardType) {
+private fun PodiumSection(items: List<Pair<PlayerEntity, MatchPlayerEntity?>>, type: LeaderboardType) {
     Row(
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.Center,
@@ -140,34 +146,37 @@ private fun PodiumSection(players: List<PlayerEntity>, type: LeaderboardType) {
             .padding(bottom = 10.dp)
     ) {
         // 2nd Place
-        if (players.size >= 2) {
+        if (items.size >= 2) {
             PodiumPosition(
-                player = players[1],
+                player = items[1].first,
+                matchPlayer = items[1].second,
                 rank = 2,
                 height = 120.dp,
-                value = getStatValue(players[1], type),
+                type = type,
                 color = Color(0xFFC0C0C0)
             )
         }
 
         // 1st Place
-        if (players.size >= 1) {
+        if (items.size >= 1) {
             PodiumPosition(
-                player = players[0],
+                player = items[0].first,
+                matchPlayer = items[0].second,
                 rank = 1,
                 height = 160.dp,
-                value = getStatValue(players[0], type),
+                type = type,
                 color = Color(0xFFFFD700)
             )
         }
 
         // 3rd Place
-        if (players.size >= 3) {
+        if (items.size >= 3) {
             PodiumPosition(
-                player = players[2],
+                player = items[2].first,
+                matchPlayer = items[2].second,
                 rank = 3,
                 height = 100.dp,
-                value = getStatValue(players[2], type),
+                type = type,
                 color = Color(0xFFCD7F32)
             )
         }
@@ -177,9 +186,10 @@ private fun PodiumSection(players: List<PlayerEntity>, type: LeaderboardType) {
 @Composable
 private fun PodiumPosition(
     player: PlayerEntity,
+    matchPlayer: MatchPlayerEntity?,
     rank: Int,
     height: androidx.compose.ui.unit.Dp,
-    value: String,
+    type: LeaderboardType,
     color: Color
 ) {
     Column(
@@ -233,18 +243,29 @@ private fun PodiumPosition(
                     maxLines = 1
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
-                )
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val matchValue = getMatchStatValue(matchPlayer, type)
+                    if (matchValue != null && matchValue != "0") {
+                        Text(
+                            text = "↑$matchValue",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                    Text(
+                        text = getStatValue(player, type),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun HallOfFameItem(player: PlayerEntity, rank: Int, value: String) {
+private fun HallOfFameItem(player: PlayerEntity, matchPlayer: MatchPlayerEntity?, rank: Int, type: LeaderboardType) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -285,11 +306,35 @@ private fun HallOfFameItem(player: PlayerEntity, rank: Int, value: String) {
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color.White
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            val matchValue = getMatchStatValue(matchPlayer, type)
+            if (matchValue != null && matchValue != "0") {
+                Text(
+                    text = "↑$matchValue",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xFF4CAF50)
+                )
+            }
+            Text(
+                text = getStatValue(player, type),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color.White
+            )
+        }
+    }
+}
+
+private fun getMatchStatValue(matchPlayer: MatchPlayerEntity?, type: LeaderboardType): String? {
+    if (matchPlayer == null) return null
+    return when (type) {
+        LeaderboardType.MOST_RUNS -> matchPlayer.totalMatchRuns.toString()
+        LeaderboardType.MOST_WICKETS -> matchPlayer.totalMatchWickets.toString()
+        LeaderboardType.MOST_CATCHES -> matchPlayer.totalMatchCatches.toString()
+        LeaderboardType.AVERAGE -> {
+             // For average, we show the bump in runs as the primary driver
+             if (matchPlayer.totalMatchRuns > 0) matchPlayer.totalMatchRuns.toString() else null
+        }
+        else -> null
     }
 }
 

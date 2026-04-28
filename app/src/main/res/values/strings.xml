@@ -26,4 +26,5 @@
     <string name="txt_title_record_action">Record action</string>
     <string name="txt_message_record_action">Are you sure you want to record the action?</string>
     <string name="txt_enter_direct_runs_to_add">Enter direct runs to add</string>
+    <string name="txt_round_completed_new_order">Round over! New batting order set based on runs.</string>
 </resources>

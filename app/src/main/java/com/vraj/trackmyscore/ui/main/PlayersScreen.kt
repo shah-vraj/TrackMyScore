@@ -182,7 +182,9 @@ fun PlayersScreen(
             brush = Brush.horizontalGradient(listOf(Color(0xFFDD600B), Color(0xFFFF8C42)))
         ) {
             if (players.map { it.isSelected }.count { it } >= 2) {
-                navHostController.navigate(MainScreen.GameScreen.route)
+                mainViewModel.startNewMatch {
+                    navHostController.navigate(MainScreen.GameScreen.route)
+                }
                 return@BaseButton
             }
 

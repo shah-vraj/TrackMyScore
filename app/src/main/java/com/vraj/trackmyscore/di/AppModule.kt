@@ -2,6 +2,7 @@ package com.vraj.trackmyscore.di
 
 import android.content.Context
 import com.vraj.trackmyscore.data.AppDatabase
+import com.vraj.trackmyscore.data.dao.MatchPlayerDao
 import com.vraj.trackmyscore.data.dao.PlayerDao
 import com.vraj.trackmyscore.util.AppSharedPreferences
 import com.vraj.trackmyscore.util.AppSharedPreferencesImpl
@@ -29,6 +30,11 @@ object AppModule {
     @Provides
     fun providePlayerDao(appDatabase: AppDatabase): PlayerDao =
         appDatabase.getPlayerDao()
+
+    @Singleton
+    @Provides
+    fun provideMatchPlayerDao(appDatabase: AppDatabase): MatchPlayerDao =
+        appDatabase.getMatchPlayerDao()
 
     @Singleton
     @Provides

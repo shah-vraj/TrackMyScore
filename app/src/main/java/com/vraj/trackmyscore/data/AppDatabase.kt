@@ -4,20 +4,23 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.vraj.trackmyscore.data.dao.MatchPlayerDao
 import com.vraj.trackmyscore.data.dao.PlayerDao
+import com.vraj.trackmyscore.data.entity.MatchPlayerEntity
 import com.vraj.trackmyscore.data.entity.PlayerEntity
 
 /**
  * The [Room] database for this app.
  */
 @Database(
-    entities = [PlayerEntity::class],
-    version = 1,
+    entities = [PlayerEntity::class, MatchPlayerEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun getPlayerDao(): PlayerDao
+    abstract fun getMatchPlayerDao(): MatchPlayerDao
 
     companion object {
         private const val DATABASE_NAME = "track-my-score-database"
